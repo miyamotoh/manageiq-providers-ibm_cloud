@@ -50,7 +50,7 @@ function fieldsForPVC(state, setState, providers, storages, diskTypes, images, b
   {
     component: componentTypes.SELECT,
     name: 'bucket_id',
-    key: `obj_storage_id-${state['obj_storage_id']}`,
+    key: `src_provider_id-${state['src_provider_id']}`,
     id: 'bucket_id',
     label: __('Choose storage bucket'),
     isRequired: true,
@@ -90,13 +90,13 @@ function fieldsForPVC(state, setState, providers, storages, diskTypes, images, b
   }]
 }
 
-function fieldsForCOS(state, setState, storages, diskTypes, buckets)
+function fieldsForCOS(state, setState, storages, diskTypes, buckets, objects)
 {
   return [
   {
     component: componentTypes.SELECT,
-    name: 'obj_storage_id_cos',
-    id: 'obj_storage_id_cos',
+    name: 'src_provider_id',
+    id: 'src_provider_id',
     label: __('Choose cloud object storage'),
     isRequired: true,
     validate: [{ type: validatorTypes.REQUIRED }],
@@ -104,21 +104,57 @@ function fieldsForCOS(state, setState, storages, diskTypes, buckets)
     clearOnUnmount: true,
     loadOptions: () => storages,
     onChange: (value) => {
-      setState({...state, obj_storage_id: value})
+      setState({...state, src_provider_id: value})
     },
   },
 
   {
     component: componentTypes.SELECT,
-    name: 'bucket_id_cos',
-    key: `obj_storage_id-${state['obj_storage_id']}`,
-    id: 'bucket_id_cos',
+    name: 'cos_container_id',
+    key: `cos_container_id-${state['src_provider_id']}`,
+    id: 'cos_container_id',
     label: __('Choose storage bucket'),
     isRequired: true,
     validate: [{ type: validatorTypes.REQUIRED }],
     includeEmpty: true,
     clearOnUnmount: true,
     loadOptions: () => buckets,
+    onChange: (value) => {
+      setState({...state, cos_container_id: value})
+    },
+  },
+
+  {
+    component: componentTypes.SELECT,
+    name: 'src_image_id',
+    key: `src_image_id-${state['src_provider_id']}-${state['cos_container_id']}`,
+    id: 'src_image_id',
+    label: __('Choose image object'),
+    isRequired: true,
+    validate: [{ type: validatorTypes.REQUIRED }],
+    includeEmpty: true,
+    clearOnUnmount: true,
+    loadOptions: () => objects,
+  },
+
+  {
+    component: componentTypes.SELECT,
+    name: 'os_type',
+    id: 'os_type',
+    label: __('Choose image OS Type'),
+    isRequired: true,
+    validate: [{ type: validatorTypes.REQUIRED }],
+    includeEmpty: true,
+    options: [{label: "AIX", value: "aix"}, {label: "IBMi", value: "ibmi"}, {label: "Red Hat Enterprise Linux (RHEL)", value: "rhel"}, {label: "SUSE Linux Enterprise Server (SLES)", value: "sles"},],
+  },
+
+  {
+    component: componentTypes.TEXT_FIELD,
+    name: 'image_name',
+    id: 'image_name',
+    label: __('Custom image name'),
+    isRequired: true,
+    validate: [{ type: validatorTypes.REQUIRED }],
   },
 
   {
@@ -141,13 +177,6 @@ function fieldsForCOS(state, setState, storages, diskTypes, buckets)
     isRequired: true,
     initialValue: 3,
     options: Array.from(Array(24).keys()).map((h) => {return {label: (h+1) + " hours", value: (h+1)} }),
-  },
-
-  {
-    component: componentTypes.CHECKBOX,
-    name: 'keep_ova_cos',
-    id: 'keep_ova_cos',
-    label: __('Keep OVA file on completion'),
   }]
 }
 
@@ -155,40 +184,39 @@ function default_fields(state, setState)
 {
     return [{
         component: componentTypes.SELECT,
-        name: 'provider_type',
-        id: 'provider_type',
+        name: 'src_provider_type',
+        id: 'src_provider_type',
         label: __('Choose source provider type'),
         isRequired: true,
         includeEmpty: true,
-        options: [{ label: 'PowerVC', value: 'PowerVC' },
-        { label: 'PowerVS', value: 'PowerVS' },
-        { label: 'COS', value: 'COS' },],
+        options: [{ label: 'PowerVC', value: 'ManageIQ::Providers::IbmPowerVc' },
+        { label: 'COS', value: 'ManageIQ::Providers::IbmCloud::ObjectStorage' },],
         onChange: (value) => {
-          setState({state, provider_type: value})
+          setState({state, src_provider_type: value})
       },
     },
   ]
 }
 
-function corresp_fields(state, setState, providers, storages, diskTypes, images, buckets)
+function corresp_fields(state, setState, providers, storages, diskTypes, images, buckets, objects)
 {
-  switch(state['provider_type']){
-    case 'PowerVC':
+  switch(state['src_provider_type']){
+    case 'ManageIQ::Providers::IbmPowerVc':
       return fieldsForPVC(state, setState, providers, storages, diskTypes, images, buckets)
-    case 'COS':
-      return fieldsForCOS(state, setState, storages, diskTypes, buckets)
+    case 'ManageIQ::Providers::IbmCloud::ObjectStorage':
+      return fieldsForCOS(state, setState, storages, diskTypes, buckets, objects)
     default:
       return []
   }
 }
 
 
-function createSchema(state, setState, providers, storages, diskTypes, images, buckets)
+function createSchema(state, setState, providers, storages, diskTypes, images, buckets, objects)
 {
   var our_fields = [];
 
   our_fields = our_fields.concat(default_fields(state, setState, providers))
-  our_fields = our_fields.concat(corresp_fields(state, setState, providers, storages, diskTypes, images, buckets))
+  our_fields = our_fields.concat(corresp_fields(state, setState, providers, storages, diskTypes, images, buckets, objects))
 
   return { fields: our_fields }
 };

@@ -60,16 +60,17 @@ class ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Template
   end
 
   def self.raw_import_image(ext_management_system, options = {})
+    fromCOS = options['src_provider_type'] == 'ManageIQ::Providers::IbmCloud::ObjectStorage'
     session_id = SecureRandom.uuid
-    wrkfl_timeout = options['timeout'].to_i.hours
+    wrkfl_timeout = (fromCOS ? options['timeout_cos'] : options['timeout'].to_i).hours
 
-    cos = ExtManagementSystem.find(options['obj_storage_id'])
+    cos = ExtManagementSystem.find(fromCOS ? options['src_provider_id'] : options['obj_storage_id'])
     raise MiqException::Error, _("unable to find cloud object storage by this id '#{options['obj_storage_id']}'") if cos.nil?
 
     location, node_auth, _ = node_creds(options['src_provider_id'])
     guid, apikey, region, endpoint, _, _ = cos.cos_creds
-    bucket = bucket_name(options['bucket_id'])
-    diskType = CloudVolumeType.find(options['disk_type_id']).name
+    bucket = bucket_name(fromCOS ? options['cos_container_id'] : options['bucket_id'])
+    diskType = CloudVolumeType.find(fromCOS ? options['disk_type_id_cos'] : options['disk_type_id']).name
 
     cos_data = {:cos_id => cos.id, :region => region, :bucketName => bucket}
     cos_ans_creds = {:resource_instance_id => guid, :apikey => apikey, :bucket_name => bucket, :url_endpoint => endpoint}
@@ -102,14 +103,14 @@ class ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::Template
     }
 
     workflow_opts = {
-      :keep_ova        => options['keep_ova'],
+      :keep_ova        => fromCOS ? true : options['keep_ova'],
       :session_id      => session_id,
       :ems_id          => ext_management_system.id,
       :src_provider_id => options['src_provider_id'].to_i,
-      :cos_id          => options['obj_storage_id'],
+      :cos_id          => cos.id,
       :bucket_name     => bucket,
       :diskType        => diskType,
-      :miq_img         => miq_img_by_ids(options['src_provider_id'], options['src_image_id']),
+      :miq_img         => fromCOS ? nil : miq_img_by_ids(options['src_provider_id'], options['src_image_id']),
       :cos_data        => cos_data,
       :import_creds_id => import_creds,
       :ssh_creds_id    => ssh_creds,

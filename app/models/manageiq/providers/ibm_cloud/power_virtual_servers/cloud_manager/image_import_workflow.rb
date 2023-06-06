@@ -1,4 +1,10 @@
 class ManageIQ::Providers::IbmCloud::PowerVirtualServers::CloudManager::ImageImportWorkflow < ManageIQ::Providers::ImageImportJob
+  def create_job(*args, **kwargs)
+    role_or_playbook_options = args[2]
+    args[2] = role_or_playbook_options.merge(:role => "embedded_ansible")
+    super(*args, **kwargs)
+  end
+
   def load_transitions
     super.merge(
       :post_execute      => {'running' => 'post_execute_poll'},
